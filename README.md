@@ -49,3 +49,6 @@ In particular, it does:
 
 - Concatenate mp4 files: https://stackoverflow.com/questions/7333232/how-to-concatenate-two-mp4-files-using-ffmpeg
 
+# Notes
+
+I need to upgrade the lambda function that downloads the Twitch video to use Handbrake CLI.

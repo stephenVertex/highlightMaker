@@ -2,6 +2,7 @@
 
 import requests
 import shutil
+import subprocess
 
 def download_file(remote_url, local_fpath):
     # URL of the image to be downloaded is defined as image_url
@@ -17,5 +18,8 @@ def download_file(remote_url, local_fpath):
         f.write(r.content)
 
 
-def convert_image_to_video(local_fpath, t_duration = 2):
-    
+def convert_image_to_video(local_fpath, output_fpath, t_duration = 2):
+    y = subprocess.run(["./mk2k-still.sh", local_fpath, str(t_duration), output_fpath])
+    return(y)
+
+
