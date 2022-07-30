@@ -9,6 +9,7 @@ from pymediainfo import MediaInfo
 from collections import namedtuple
 import uuid
 import shotstack 
+import sjbs3
 
 VidData = namedtuple("VidData", ["remote_uri", "duration_s"])
 
@@ -29,7 +30,6 @@ def make_image_clip(image_uri):
                 },
                 "start": 0,
                 "length": 2,
-                "effect": "zoomIn",
                 "transition": {
                     "in": "fade",
                     "out": "fade"
@@ -110,3 +110,55 @@ def test_construct():
     thumbnail_uri = "https://devgraph-aws-made-easy.s3.amazonaws.com/hl-auto/macie-thumb.jpeg"
     r = construct_highlight_video_short(thumbnail_uri, [vid_1, vid_2])
     return None
+
+
+
+def download_file(remote_url, local_fpath):
+    # URL of the image to be downloaded is defined as image_url
+    r = requests.get(remote_url) # create HTTP response object
+
+    # send a HTTP request to the server and save
+    # the HTTP response in a response object called r
+    with open(local_fpath,'wb') as f:
+        # Saving received content as a png file in
+        # binary format
+        # write the contents of the response (r.content)
+        # to a new file in binary mode.
+        f.write(r.content)
+
+def do_fn(thumb_uri, main_uri):
+    vid_1 = VidData(remote_uri=main_uri, duration_s=481)
+    vid_2 = VidData(remote_uri= "https://devgraph-aws-made-easy.s3.amazonaws.com/hl-auto/twitter-end.mp4", duration_s=5)
+    r = construct_highlight_video_short(thumb_uri, [vid_1, vid_2])
+    xid = r.json()['response']['id']
+
+    r = shotstack.check_render(xid)    
+    while(r.json()['response']['status'] != 'done'):
+        time.sleep(30)
+        r = shotstack.check_render(xid)
+    url = r.json()['response']['url']
+
+    ur = str(uuid.uuid4()).split('-')[1]
+    fname_local = os.path.splitext(main_uri.split('/')[-1])[0] + "--twitterclip-" + ur + ".mp4"
+    download_file(url, fname_local)
+    sjbs3.upload_file(fname_local, "devgraph-aws-made-easy", object_name="hl-auto/" + fname_local)
+
+    print("NEW URI:")
+    new_uri = f"https://devgraph-aws-made-easy.s3.amazonaws.com/hl-auto/{fname_local}"
+    print(new_uri)
+
+import csv
+
+def do_loop():
+    with open('hl-map.csv') as csvfile:
+        spamreader = csv.reader(csvfile)
+        for row in spamreader:
+            print("--------------")
+            print(row[1])
+            thumb = row[3]
+            main_v = row[4]
+            print(thumb)
+            print(main_v)
+            if thumb == "thumbnail":
+                continue
+            do_fn(thumb, main_v)
