@@ -10,6 +10,8 @@ from collections import namedtuple
 import uuid
 import shotstack 
 import sjbs3
+import glob
+import math
 
 VidData = namedtuple("VidData", ["remote_uri", "duration_s"])
 
@@ -29,9 +31,9 @@ def make_image_clip(image_uri):
                     "src": image_uri
                 },
                 "start": 0,
-                "length": 2,
+                "length": 3,
+                "effect" : "zoomOut",
                 "transition": {
-                    "in": "fade",
                     "out": "fade"
                 }
          })
@@ -126,33 +128,53 @@ def download_file(remote_url, local_fpath):
         # to a new file in binary mode.
         f.write(r.content)
 
+
+def local_get_video_length_seconds(video_fpath):
+    media_info = MediaInfo.parse(video_fpath)
+    vid_track = list(filter(lambda x: x.track_type == 'Video', media_info.tracks))
+    if len(vid_track) == 0:
+        return(None)
+    else:
+        len_secs = vid_track[0].duration/1000
+        return(len_secs)
+
+def find_video_path(remote_uri):
+    fname = remote_uri.split('/')[-1]
+    g = glob.glob("/Users/stephen/work/**/"+ fname, recursive=True)
+    if len(g) == 0:
+        return(None)
+    else:
+        return(g[0])
+
 def do_fn(thumb_uri, main_uri):
-    vid_1 = VidData(remote_uri=main_uri, duration_s=481)
+    # get vid 1 duration
+    p = find_video_path(main_uri)
+    if p is not None:
+        dur = math.ceil(local_get_video_length_seconds(p))
+        print("Detected duration: " + str(dur))
+        
+    else:
+        dur = 1000
+
+
+    vid_1 = VidData(remote_uri=main_uri, duration_s=dur)
     vid_2 = VidData(remote_uri= "https://devgraph-aws-made-easy.s3.amazonaws.com/hl-auto/twitter-end.mp4", duration_s=5)
-    r = construct_highlight_video_short(thumb_uri, [vid_1, vid_2])
+    #r = construct_highlight_video_short(thumb_uri, [vid_1, vid_2])
+    r = construct_highlight_video(thumb_uri, [vid_1])
     xid = r.json()['response']['id']
 
-    r = shotstack.check_render(xid)    
-    while(r.json()['response']['status'] != 'done'):
-        time.sleep(30)
-        r = shotstack.check_render(xid)
-    url = r.json()['response']['url']
+    r = shotstack.check_render(xid)   
+    print(r.json())
 
-    ur = str(uuid.uuid4()).split('-')[1]
-    fname_local = os.path.splitext(main_uri.split('/')[-1])[0] + "--twitterclip-" + ur + ".mp4"
-    download_file(url, fname_local)
-    sjbs3.upload_file(fname_local, "devgraph-aws-made-easy", object_name="hl-auto/" + fname_local)
 
-    print("NEW URI:")
-    new_uri = f"https://devgraph-aws-made-easy.s3.amazonaws.com/hl-auto/{fname_local}"
-    print(new_uri)
 
 import csv
 
-def do_loop():
-    with open('hl-map.csv') as csvfile:
+def do_loop():    
+    with open('hl-map-3.csv') as csvfile:
         spamreader = csv.reader(csvfile)
-        for row in spamreader:
+        for i, row in enumerate(spamreader):
+
             print("--------------")
             print(row[1])
             thumb = row[3]
@@ -160,5 +182,8 @@ def do_loop():
             print(thumb)
             print(main_v)
             if thumb == "thumbnail":
+                continue
+            if i  <= 1:
+                print("Skipping " + main_v)
                 continue
             do_fn(thumb, main_v)
