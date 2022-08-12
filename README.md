@@ -52,3 +52,7 @@ In particular, it does:
 # Notes
 
 I need to upgrade the lambda function that downloads the Twitch video to use Handbrake CLI.
+
+# Notes 2
+
+Need to integrate DyanmoDB support.
